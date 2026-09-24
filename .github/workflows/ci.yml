@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # The 50-triple fixtures are not in git; cache them keyed by the manifest.
+      - uses: actions/cache@v4
+        with:
+          path: .assets-cache
+          key: assets-${{ hashFiles('scripts/assets.manifest') }}
+      - run: scripts/fetch_assets.sh
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - run: uv sync --extra dev
+      - run: uv run pytest --cov=.
+      - run: uv run ruff check .

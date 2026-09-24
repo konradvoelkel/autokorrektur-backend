@@ -6,8 +6,8 @@ import icontract
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.config import BackendSettings, settings
-from backend.server import (
+from config import BackendSettings, settings
+from server import (
     app,
     process_inpainting_payload,
     rate_limits,
@@ -170,7 +170,7 @@ def test_inpaint_rate_limit_exceeded() -> None:
 @pytest.mark.parametrize("triple_index", range(1, 51))
 def test_fifty_image_triples_inpaint_suite(triple_index: int) -> None:
     """Test all 50 image-triples (car, mask, carless) against the backend inpainting service."""
-    fixtures_dir = Path(__file__).parent / "tests" / "fixtures" / "triples"
+    fixtures_dir = Path(__file__).parent / "assets" / "triples"
     prefix = f"triple_{triple_index:02d}"
 
     car_path = fixtures_dir / f"{prefix}_with_car.png"

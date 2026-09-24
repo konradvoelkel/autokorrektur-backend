@@ -1,79 +1,64 @@
-# AutoKorrektur FastAPI Backend Service
+# autokorrektur-backend
 
-This backend service provides opt-in, photorealistic **SDXL Cloud Inpainting** for the AutoKorrektur Android application.
+Optional cloud service for [AutoKorrektur](https://github.com/xamde/AutoKorrektur): SDXL inpainting
+for clients that ask for photorealistic quality instead of the on-device MI-GAN result.
 
-## Best Practices & Standards (EiPy Compliant)
+**Status: not in production, and not used by any published build.** The Android app's Play Store
+flavor (`core`) has no internet permission at all; the cloud tier exists only behind the
+`FEATURE_CLOUD_SDXL` flag in the `beta`/`full` flavors. This repository was split out of the app
+repository on 2026-09-24 with its history.
 
-- **Standard PEP 621 Packaging**: Dependencies and tooling configured in [pyproject.toml](../backend/pyproject.toml) managed via `uv`.
-- **Design by Contract (DbC)**: Preconditions and postconditions enforced at runtime via `icontract` (`@icontract.require`, `@icontract.ensure`).
-- **Code Quality & Type Safety**: Checked via `ruff` and `mypy` (`strict = true`).
-- **Concurrency & Reliability**: SDXL inference is guarded by an `asyncio.Semaphore(1)` to prevent
-  concurrent GPU execution, avoiding CUDA Out-of-Memory (OOM) errors and server crashes.
-- **Enhanced Security & Rate Limiting**: Requests are rate-limited by both Device UUID and Client IP
-  using atomic Redis operations (or in-memory fallback).
-- **Privacy & GDPR Compliance**: Minimal data footprint processing. All images are processed
-  strictly in-memory and re-encoded before returning; zero long-term retention.
+Also here: `benchmark_ml.py`, the desktop evaluation harness that scores segmentation and
+inpainting quality (IoU, Dice, Boundary-IoU, over-masking rate, PSNR/SSIM) over the 50-triple
+ground-truth set and writes an HTML diff report.
 
-## API Specification
-
-### 1. Health Check
-- **Endpoint**: `GET /health`
-- **Response**: `{"status": "ok", "redis_connected": false, "sdxl_loaded": false}`
-
-### 2. SDXL Inpainting
-- **Endpoint**: `POST /v1/inpaint`
-- **Content-Type**: `multipart/form-data`
-- **Form Parameters**:
-  - `device_uuid`: String - Unique client installation identifier.
-  - `play_integrity_token`: String - Play Integrity verification token.
-  - `image`: File (`image/jpeg`) - Source photo.
-  - `mask`: File (`image/jpeg`) - Binary vehicle segmentation mask.
-  - `preview`: File (`image/jpeg`, optional) - Downscaled preview bitmap.
-- **Response**: `200 OK` (`image/jpeg`) streamed response or `429 Too Many Requests`.
-
-## Local Setup & Development with `uv`
-
-1. Sync virtual environment and install development dependencies:
-   ```bash
-   uv sync --directory backend --extra dev
-   ```
-
-2. Run code quality checks (Ruff & Mypy):
-   ```bash
-   uv run --directory backend ruff check .
-   uv run --directory backend mypy .
-   ```
-
-3. Run test suite with coverage:
-   ```bash
-   uv run --directory backend pytest --cov=.
-   ```
-
-4. Start the FastAPI development server:
-   ```bash
-   uv run --directory backend uvicorn server:app --host 127.0.0.1 --port 8000
-   ```
-
-## Environment Variables
-
-The application can be configured via environment variables (prefixed with `AUTOKORREKTUR_`):
-
-| Variable                                       | Description                            | Default                                  |
-|------------------------------------------------|----------------------------------------|------------------------------------------|
-| `AUTOKORREKTUR_REDIS_URL`                      | Redis connection URL for rate limiting | `None`                                   |
-| `AUTOKORREKTUR_MAX_DAILY_REQUESTS`             | Max requests per device per day        | `10`                                     |
-| `AUTOKORREKTUR_MAX_UPLOAD_BYTES`               | Max total size of a single request     | `10485760` (10MB)                        |
-| `AUTOKORREKTUR_ENABLE_SDXL_LOAD`               | Whether to load the real SDXL model    | `False`                                  |
-| `AUTOKORREKTUR_STRICT_INTEGRITY_CHECK`         | Reject requests with invalid tokens    | `True`                                   |
-| `AUTOKORREKTUR_ALLOWED_INTEGRITY_TOKENS`       | List of valid Play Integrity tokens    | `[]`                                     |
-| `AUTOKORREKTUR_GOOGLE_APPLICATION_CREDENTIALS` | Path to Google Service Account JSON    | `None`                                   |
-| `AUTOKORREKTUR_ANDROID_PACKAGE_NAME`           | Expected Android app package name      | `de.konradvoelkel.android.autokorrektur` |
-
-## Docker Container Deployment
-
-To build and run the production backend container (from the project root):
+## Run it
 
 ```bash
-docker build -t autokorrektur-backend -f backend/Dockerfile .
-docker-compose -f backend/docker-compose.yml up -d
+scripts/fetch_assets.sh            # test fixtures, verified by SHA-256 (see scripts/assets.manifest)
+uv sync --extra dev
+uv run pytest --cov=.
+uv run uvicorn server:app --port 8000
+uv run python benchmark_ml.py      # writes benchmark_report.html
 ```
+
+`ruff check .` and `mypy .` (strict) are expected to stay clean.
+
+## API
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /health` | `{"status": "ok", "redis_connected": …, "sdxl_loaded": …}` |
+| `POST /v1/inpaint` | multipart: `device_uuid`, `play_integrity_token`, `image`, `mask`, optional `preview` → streamed `image/jpeg`, or `429` when the daily quota is spent |
+| `GET /v1/nonce` | nonce for the Play Integrity check |
+
+Images are processed in memory and re-encoded on the way out; nothing is written to disk. SDXL
+inference is serialised behind an `asyncio.Semaphore(1)` so concurrent requests cannot exhaust GPU
+memory, and requests are rate-limited per device **and** per client IP via Redis (in-memory
+fallback). Preconditions are enforced at runtime with `icontract`.
+
+## Configuration
+
+Environment variables, prefixed `AUTOKORREKTUR_`: `REDIS_URL`, `MAX_DAILY_REQUESTS` (10),
+`MAX_UPLOAD_BYTES` (10 MB), `ENABLE_SDXL_LOAD` (false), `STRICT_INTEGRITY_CHECK` (true),
+`ALLOWED_INTEGRITY_TOKENS`, `GOOGLE_APPLICATION_CREDENTIALS`, `ANDROID_PACKAGE_NAME`.
+Defaults live in `config.py` — that file is the reference, not this list.
+
+## Deployment
+
+German data centre for GDPR reasons (Hetzner Falkenstein/Nuremberg or AWS `eu-central-1`); a GPU
+with 12 GB+ VRAM gives ~2–3 s per image, CPU-only ~15–20 s.
+
+```bash
+printf 'AUTOKORREKTUR_MAX_DAILY_REQUESTS=2\nREDIS_PASSWORD=%s\n' "$(openssl rand -hex 24)" > .env
+chmod 600 .env
+docker compose up -d --build
+```
+
+Compose refuses to start without `REDIS_PASSWORD` and does not publish the Redis port. Put a
+reverse proxy with automatic TLS in front (Caddy: `api.example.org { reverse_proxy 127.0.0.1:8000 }`)
+and check `curl -i https://<host>/health`.
+
+If this ever goes live, the app's `BACKEND_URL` (release build type in `app/build.gradle.kts`), the
+privacy policy and the Play Data Safety answers all have to be updated in the app repository first —
+they currently state that the published app has no network access.

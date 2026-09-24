@@ -1,0 +1,7 @@
+# Test fixtures, kept out of git (250 PNGs, ~100 MB). `scripts/fetch_assets.sh` downloads and
+# SHA-256-verifies them; `pytest` needs them for the 50-triple suite in test_server.py and
+# benchmark_ml.py reads them for the metric run.
+#
+# Format: kind  dest  sha256  url  [extra tar args] — see fetch_assets.sh.
+
+archive	assets/triples	fa9560b2e280a9e9d4b84205296d940ff17741977216bd93a7231a135ae12a08	https://github.com/konradvoelkel/autokorrektur-backend/releases/download/assets-v1/triples.tar.zst

@@ -2,21 +2,16 @@ FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim
 
 WORKDIR /app
 
-# Copy dependency specifications (from project root context)
-COPY backend/pyproject.toml backend/uv.lock* backend/README.md ./backend/
-COPY backend/*.py ./backend/
+# Dependencies first, so a code change doesn't invalidate the layer.
+COPY pyproject.toml uv.lock* README.md ./
+RUN uv sync --frozen --no-dev
 
-# Move into backend for uv sync if pyproject.toml is there
-# Or stay in /app and use --project backend
-RUN uv sync --frozen --no-dev --project ./backend
+COPY *.py ./
+COPY templates ./templates
 
-# Expose port for FastAPI
 EXPOSE 8000
 
-# Run as non-root user
 RUN adduser --disabled-password --no-create-home appuser
 USER appuser
 
-# Run Uvicorn server via uv run
-# Use the backend package structure for imports to work
-CMD ["uv", "run", "--project", "./backend", "uvicorn", "backend.server:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+CMD ["uv", "run", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]

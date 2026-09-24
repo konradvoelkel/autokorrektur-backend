@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from backend.benchmark_ml import (
+from benchmark_ml import (
     compute_boundary_iou,
     compute_psnr,
     compute_ssim,

@@ -22,10 +22,11 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-TRIPLES_DIR = PROJECT_ROOT / "app/src/androidTest/assets/triples"
-MANIFEST_PATH = PROJECT_ROOT / "app/src/androidTest/assets/benchmark_manifest.json"
-MODEL_DIR = PROJECT_ROOT / "app/src/main/assets/model"
+PROJECT_ROOT = Path(__file__).resolve().parent
+ASSETS_DIR = PROJECT_ROOT / "assets"
+TRIPLES_DIR = ASSETS_DIR / "triples"
+MANIFEST_PATH = ASSETS_DIR / "benchmark_manifest.json"
+MODEL_DIR = ASSETS_DIR / "model"
 
 
 @dataclass
@@ -209,9 +210,9 @@ def run_benchmark() -> list[SampleMetrics]:
     for item in samples:
         s_id = item["id"]
         cat = item["category"]
-        img_path = PROJECT_ROOT / "app/src/androidTest/assets" / item["image"]
-        mask_path = PROJECT_ROOT / "app/src/androidTest/assets" / item["mask"]
-        migan_path = PROJECT_ROOT / "app/src/androidTest/assets" / item["migan"]
+        img_path = ASSETS_DIR / item["image"]
+        mask_path = ASSETS_DIR / item["mask"]
+        migan_path = ASSETS_DIR / item["migan"]
 
         if not img_path.exists() or not mask_path.exists():
             continue
@@ -284,7 +285,7 @@ def run_benchmark() -> list[SampleMetrics]:
     print(f"Mean Background PSNR:   {mean_psnr:.2f} dB")
 
     # Generate HTML Report
-    html_report_path = PROJECT_ROOT / "backend/benchmark_report.html"
+    html_report_path = PROJECT_ROOT / "benchmark_report.html"
     generate_html_report(results, mean_iou, mean_dice, mean_b_iou, mean_overmask, html_report_path)
     print(f"\nVisual HTML report generated: {html_report_path}")
 

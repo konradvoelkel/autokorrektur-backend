@@ -14,7 +14,7 @@ from starlette.datastructures import UploadFile as StarletteUploadFile
 StarletteUploadFile.spool_max_size = 15 * 1024 * 1024
 from pydantic import BaseModel, Field
 
-from backend.config import settings
+from config import settings
 
 from contextlib import asynccontextmanager
 from pathlib import Path
