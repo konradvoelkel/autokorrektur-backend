@@ -1,23 +1,25 @@
 import asyncio
 import io
 import logging
+import secrets
 from collections import defaultdict
+from contextlib import asynccontextmanager
 from datetime import date
+from pathlib import Path
 from typing import Any
 
 import icontract
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
-import secrets
-from starlette.datastructures import UploadFile as StarletteUploadFile
-
-StarletteUploadFile.spool_max_size = 15 * 1024 * 1024
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
+from starlette.datastructures import UploadFile as StarletteUploadFile
 
 from config import settings
 
-from contextlib import asynccontextmanager
-from pathlib import Path
+# Uploads above this size spill to a temp file; keep them in memory instead, so nothing an
+# uploader sends ever touches the disk (the zero-storage promise in the app's privacy policy).
+StarletteUploadFile.spool_max_size = 15 * 1024 * 1024
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -125,8 +127,6 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
-
-from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
@@ -406,7 +406,7 @@ async def inpaint_image(
                     asyncio.to_thread(process_inpainting_payload, image_data, mask_data, preview_data),
                     timeout=120.0
                 )
-            except asyncio.TimeoutError as e:
+            except TimeoutError as e:
                 raise HTTPException(status_code=504, detail="Inpainting inference timed out") from e
 
         logger.info("Returning processed image from memory")

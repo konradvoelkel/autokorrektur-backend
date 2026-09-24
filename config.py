@@ -1,3 +1,5 @@
+import functools
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -51,9 +53,6 @@ class BackendSettings(BaseSettings):
         default="de.konradvoelkel.android.autokorrektur",
         description="Expected Android package name validated against Play Integrity claims",
     )
-
-
-import functools
 
 
 @functools.lru_cache

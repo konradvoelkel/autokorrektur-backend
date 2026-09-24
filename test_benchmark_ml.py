@@ -4,10 +4,12 @@ import numpy as np
 import pytest
 
 from benchmark_ml import (
+    SampleMetrics,
     compute_boundary_iou,
     compute_psnr,
     compute_ssim,
     generate_error_heatmap,
+    generate_html_report,
     mat_to_base64,
 )
 
@@ -66,3 +68,27 @@ def test_mat_to_base64() -> None:
     b64 = mat_to_base64(img)
     assert isinstance(b64, str)
     assert len(b64) > 0
+
+
+def test_generate_html_report_writes_escaped_document(tmp_path) -> None:
+    """Regression: a local variable named `html` used to shadow the stdlib module the same
+    function escapes with, so writing the report raised UnboundLocalError."""
+    out = tmp_path / "report.html"
+    sample = SampleMetrics(
+        sample_id=1,
+        category="<script>alert(1)</script>",
+        iou=0.9,
+        dice=0.9,
+        boundary_iou=0.8,
+        overmasking_rate=0.01,
+        psnr=42.0,
+        ssim=0.99,
+        latency_ms=12.3,
+    )
+
+    generate_html_report([sample], 0.9, 0.9, 0.8, 0.01, out)
+
+    document = out.read_text()
+    assert "<!DOCTYPE html>" in document
+    assert "&lt;script&gt;" in document, "category must be HTML-escaped"
+    assert "<script>alert(1)</script>" not in document

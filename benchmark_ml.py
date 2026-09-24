@@ -18,9 +18,13 @@ import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
+
+if TYPE_CHECKING:  # onnxruntime is imported lazily below; only the annotation needs it
+    import onnxruntime as ort
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 ASSETS_DIR = PROJECT_ROOT / "assets"
@@ -321,7 +325,7 @@ def generate_html_report(
         """
         )
 
-    html = f"""<!DOCTYPE html>
+    document = f"""<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
@@ -400,7 +404,7 @@ def generate_html_report(
 </body>
 </html>
 """
-    out_path.write_text(html)
+    out_path.write_text(document)
 
 
 if __name__ == "__main__":
