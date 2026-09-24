@@ -1,6 +1,6 @@
 # autokorrektur-backend
 
-Optional cloud service for [AutoKorrektur](https://github.com/xamde/AutoKorrektur): SDXL inpainting
+Optional cloud service for [AutoKorrektur](https://github.com/konradvoelkel/AutoKorrektur): SDXL inpainting
 for clients that ask for photorealistic quality instead of the on-device MI-GAN result.
 
 **Status: not in production, and not used by any published build.** The Android app's Play Store
